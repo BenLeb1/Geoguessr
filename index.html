@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>GeoGuessr Guide</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles/main.css" />
+</head>
+<body>
+
+<div id="loading">
+  <div class="spinner"></div>
+  <h2>🌍 GeoGuessr Guide</h2>
+  <p>Loading world map…</p>
+</div>
+
+<div id="app">
+  <header id="hdr">
+    <h1>🌍 GeoGuessr Guide</h1>
+    <div id="search-wrap">
+      <input id="search" placeholder="Search countries..." autocomplete="off" />
+      <div id="suggestions" class="suggestions" style="display:none"></div>
+    </div>
+    <div id="stats">
+      <div><strong id="stat-covered">0</strong> covered</div>
+      <div><strong id="stat-tips">0</strong> tips</div>
+    </div>
+  </header>
+
+  <main>
+    <section id="map-area">
+      <div id="map-svg-container"></div>
+      <div id="map-controls">
+        <button id="zin">＋</button>
+        <button id="zout">−</button>
+        <button id="zreset">⤢</button>
+      </div>
+    </section>
+  </main>
+
+  <div id="tt" class="tooltip" style="opacity:0;position:fixed;z-index:40;">
+    <div id="tt-name"></div>
+    <div id="tt-cont"></div>
+  </div>
+
+  <div id="overlay" class="overlay"></div>
+  <aside id="modal" class="modal">
+    <button id="modal-close">✕</button>
+    <div id="modal-header">
+      <span id="modal-flag"></span>
+      <h2 id="modal-country">Country</h2>
+      <div id="modal-cont"></div>
+      <div id="tip-count-badge"></div>
+    </div>
+    <div id="modal-body">
+      <div id="no-tips-msg">No tips available.</div>
+      <div id="flashcard" class="flashcard" style="display:none">
+        <img id="card-img" src="" alt="" style="display:none" />
+        <div id="card-text"></div>
+        <div id="card-hint" class="hint"></div>
+      </div>
+      <div id="card-nav" style="display:none">
+        <button id="btn-prev">Prev</button>
+        <div id="card-counter"></div>
+        <button id="btn-next">Next</button>
+        <div class="progress"><div id="progress-fill"></div></div>
+      </div>
+    </div>
+  </aside>
+
+</div>
+
+<script type="module" src="src/main.js"></script>
+</body>
+</html>
