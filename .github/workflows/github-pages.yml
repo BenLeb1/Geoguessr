@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+  workflow_dispatch:
 
 jobs:
   deploy:
@@ -12,6 +13,9 @@ jobs:
       contents: read
       pages: write
       id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
 
     steps:
       - name: Checkout repository
@@ -19,6 +23,7 @@ jobs:
 
       - name: Prepare GitHub Pages artifact
         run: |
+          rm -rf deploy
           mkdir deploy
           cp -R index.html main.html src styles deploy
 
@@ -26,6 +31,14 @@ jobs:
         uses: actions/configure-pages@v4
 
       - name: Upload artifact for Pages
+        id: upload
         uses: actions/upload-pages-artifact@v5
         with:
           path: deploy
+          artifact_name: github-pages
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+        with:
+          artifact_name: github-pages
