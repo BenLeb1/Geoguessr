@@ -1,0 +1,281 @@
+import { countryData } from './data/countryData.js';
+
+// Derived data
+const coveredCountries = new Set(Object.keys(countryData));
+
+const continentColors = {
+  Europe: 'var(--c-europe)',
+  Asia: 'var(--c-asia)',
+  Africa: 'var(--c-africa)',
+  'North America': 'var(--c-namerica)',
+  'South America': 'var(--c-samerica)',
+  Oceania: 'var(--c-oceania)'
+};
+const continentHover = {
+  Europe: 'var(--c-hover-europe)', Asia: 'var(--c-hover-asia)', Africa: 'var(--c-hover-africa)',
+  'North America': 'var(--c-hover-namerica)', 'South America': 'var(--c-hover-samerica)', Oceania: 'var(--c-hover-oceania)'
+};
+const continentBg = {
+  Europe: 'rgba(78,124,186,.18)', Asia: 'rgba(192,118,58,.18)', Africa: 'rgba(196,168,32,.18)',
+  'North America': 'rgba(63,160,107,.18)', 'South America': 'rgba(139,95,207,.18)', Oceania: 'rgba(46,168,160,.18)'
+};
+
+// ================================================================
+//  MODAL STATE
+// ================================================================
+let currentCountry = null, currentCard = 0;
+const modal = document.getElementById('modal');
+const overlay = document.getElementById('overlay');
+const modalClose = document.getElementById('modal-close');
+const modalCountry = document.getElementById('modal-country');
+const modalCont = document.getElementById('modal-cont');
+const modalFlag = document.getElementById('modal-flag');
+const tipCountBadge = document.getElementById('tip-count-badge');
+const cardCounter = document.getElementById('card-counter');
+const progressFill = document.getElementById('progress-fill');
+const flashcard = document.getElementById('flashcard');
+const cardImg = document.getElementById('card-img');
+const cardText = document.getElementById('card-text');
+const cardHint = document.getElementById('card-hint');
+const noTipsMsg = document.getElementById('no-tips-msg');
+const cardNav = document.getElementById('card-nav');
+const btnPrev = document.getElementById('btn-prev');
+const btnNext = document.getElementById('btn-next');
+const tt = document.getElementById('tt');
+
+function openModal(name) {
+  const d = countryData[name];
+  if (!d) return;
+  currentCountry = name; currentCard = 0;
+  modalCountry.textContent = name;
+  modalFlag.textContent = d.flag || '';
+  const col = continentColors[d.continent] || '#aaa';
+  const bg = continentBg[d.continent] || 'rgba(80,80,80,.2)';
+  modalCont.textContent = d.continent;
+  modalCont.style.color = col; modalCont.style.background = bg;
+  const tc = d.tips.length;
+  tipCountBadge.textContent = tc > 0 ? `${tc} tip${tc !== 1 ? 's' : ''}` : ' No tips yet';
+  renderCard();
+  modal.classList.add('open');
+  overlay.classList.add('show');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeModal() {
+  modal.classList.remove('open');
+  overlay.classList.remove('show');
+  document.body.style.overflow = '';
+  currentCountry = null;
+}
+
+function renderCard() {
+  const tips = countryData[currentCountry]?.tips || [];
+  if (!tips.length) {
+    flashcard.style.display = 'none'; cardNav.style.display = 'none';
+    cardCounter.textContent = ''; noTipsMsg.style.display = 'block';
+    progressFill.style.width = '0'; return;
+  }
+  noTipsMsg.style.display = 'none'; flashcard.style.display = 'flex'; cardNav.style.display = 'flex';
+  const tip = tips[currentCard];
+  cardCounter.textContent = `Tip ${currentCard + 1} / ${tips.length}`;
+  progressFill.style.width = `${((currentCard + 1) / tips.length) * 100}%`;
+  flashcard.classList.add('fade');
+  setTimeout(() => {
+    cardText.textContent = tip.text;
+    if (tip.hint) { cardHint.textContent = `💡 ${tip.hint}`; cardHint.style.display = 'block'; }
+    else { cardHint.style.display = 'none'; }
+    if (tip.image) { cardImg.src = tip.image; cardImg.style.display = 'block'; }
+    else { cardImg.style.display = 'none'; cardImg.src = ''; }
+    flashcard.classList.remove('fade');
+  }, 150);
+  btnPrev.disabled = currentCard === 0;
+  btnNext.disabled = currentCard === tips.length - 1;
+}
+
+btnPrev.addEventListener('click', () => { if (currentCard > 0) { currentCard--; renderCard(); } });
+btnNext.addEventListener('click', () => { const t = countryData[currentCountry]?.tips || []; if (currentCard < t.length - 1) { currentCard++; renderCard(); } });
+modalClose.addEventListener('click', closeModal);
+overlay.addEventListener('click', closeModal);
+document.addEventListener('keydown', e => {
+  if (!currentCountry) return;
+  if (e.key === 'Escape') closeModal();
+  if (e.key === 'ArrowRight' && !btnNext.disabled) btnNext.click();
+  if (e.key === 'ArrowLeft' && !btnPrev.disabled) btnPrev.click();
+});
+
+// Update header stats
+const totalTips = Object.values(countryData).reduce((a, c) => a + (c.tips?.length || 0), 0);
+const statCoveredEl = document.getElementById('stat-covered');
+const statTipsEl = document.getElementById('stat-tips');
+if (statCoveredEl) statCoveredEl.textContent = coveredCountries.size;
+if (statTipsEl) statTipsEl.textContent = totalTips;
+
+// ================================================================
+//  MAP
+// ================================================================
+const nameOverrides = {
+  'Dem. Rep. Congo': 'Democratic Republic of the Congo',
+  'Dominican Rep.': 'Dominican Republic',
+  'Falkland Is.': 'Falkland Islands',
+  'Falkland Islands': 'Falkland Islands',
+  'eSwatini': 'Eswatini',
+  'Israel': 'Israel & the West Bank',
+  'Macedonia': 'North Macedonia',
+  'North Macedonia': 'North Macedonia',
+  'South Georgia & Sandwich Islands': 'South Georgia & Sandwich Islands',
+  'Curaçao': 'Curaçao',
+  'United States of America': 'United States of America'
+};
+
+const isoToName = {
+  "4": "Afghanistan",
+  "8": "Albania",
+  "12": "Algeria",
+  "20": "Andorra",
+  "24": "Angola",
+  "32": "Argentina",
+  "36": "Australia",
+  "40": "Austria",
+  "50": "Bangladesh",
+  "56": "Belgium",
+  /* truncated mapping for brevity; full map can be restored if needed */
+};
+
+async function loadMap() {
+  const [worldRes] = await Promise.all([
+    fetch('https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json').then(r => r.json()),
+    loadScript('https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js'),
+    loadScript('https://cdnjs.cloudflare.com/ajax/libs/topojson/3.0.2/topojson.min.js')
+  ]);
+  buildMap(worldRes);
+  const loadingEl = document.getElementById('loading');
+  if (loadingEl) loadingEl.style.display = 'none';
+}
+
+function loadScript(src) {
+  return new Promise(r => { const s = document.createElement('script'); s.src = src; s.onload = r; document.head.appendChild(s); });
+}
+
+let panZoom = null;
+
+function buildMap(world) {
+  if (!window.d3 || !window.topojson) return;
+  const container = document.getElementById('map-svg-container');
+  const W = container.clientWidth || 960;
+  const H = container.clientHeight || 500;
+
+  const svg = d3.select(container).append('svg')
+    .attr('viewBox', `0 0 ${W} ${H}`)
+    .attr('preserveAspectRatio', 'xMidYMid meet')
+    .style('width', '100%').style('height', '100%');
+
+  const proj = d3.geoNaturalEarth1().scale(W / 6.2).translate([W / 2, H / 2]);
+  const path = d3.geoPath().projection(proj);
+  const countries = topojson.feature(world, world.objects.countries);
+
+  const franceFeature = countries.features.find(f => f.properties?.name === 'France');
+  if (franceFeature?.geometry?.type === 'MultiPolygon') {
+    franceFeature.geometry.coordinates = franceFeature.geometry.coordinates.filter(polygon => {
+      const points = polygon.flat();
+      const [sumLon, sumLat] = points.reduce((acc, pt) => [acc[0] + pt[0], acc[1] + pt[1]], [0, 0]);
+      const avgLon = sumLon / points.length;
+      const avgLat = sumLat / points.length;
+      return !(avgLon < -30 && avgLon > -90 && avgLat > -20 && avgLat < 10);
+    });
+  }
+
+  const g = svg.append('g').attr('id', 'map-g');
+  svg.insert('rect', 'g').attr('width', W).attr('height', H).attr('fill', '#0d1420');
+
+  g.selectAll('path.country')
+    .data(countries.features)
+    .join('path')
+    .attr('class', 'country')
+    .attr('d', path)
+    .each(function (d) {
+      const id = String(d.id).padStart(3, '0');
+      const rawName = d.properties?.name || isoToName[id] || isoToName[String(d.id)];
+      const name = rawName && nameOverrides[rawName] ? nameOverrides[rawName] : rawName;
+      const covered = name && coveredCountries.has(name);
+      const cont = covered ? countryData[name]?.continent : null;
+      const fill = covered ? (continentColors[cont] || '#555') : 'var(--c-grey)';
+      d3.select(this)
+        .attr('fill', fill).attr('stroke', '#060a14').attr('stroke-width', 0.4)
+        .attr('cursor', covered ? 'pointer' : 'default')
+        .attr('data-name', name || '').attr('data-covered', covered ? '1' : '0')
+        .attr('data-fill', fill);
+    })
+    .on('mousemove', function (event) {
+      const name = this.getAttribute('data-name');
+      const covered = this.getAttribute('data-covered') === '1';
+      if (!covered || !name) return;
+      const cont = countryData[name]?.continent;
+      d3.select(this).attr('fill', continentHover[cont] || '#aaa');
+      const tips = countryData[name]?.tips?.length || 0;
+      document.getElementById('tt-name').textContent = name + (countryData[name]?.flag ? ' ' + countryData[name].flag : '');
+      document.getElementById('tt-cont').textContent = `${cont} · ${tips} tip${tips !== 1 ? 's' : ''}`;
+      tt.style.opacity = '1';
+      tt.style.left = (event.clientX + 14) + 'px';
+      tt.style.top = (event.clientY - 48) + 'px';
+    })
+    .on('mouseleave', function () { d3.select(this).attr('fill', this.getAttribute('data-fill')); tt.style.opacity = '0'; })
+    .on('click', function () { const name = this.getAttribute('data-name'); const covered = this.getAttribute('data-covered') === '1'; if (covered && name) openModal(name); });
+
+  const grat = d3.geoGraticule()();
+  g.append('path').datum(grat).attr('class', 'graticule')
+    .attr('d', path).attr('fill', 'none')
+    .attr('stroke', 'rgba(255,255,255,0.04)').attr('stroke-width', 0.5);
+
+  const zoom = d3.zoom().scaleExtent([0.8, 30]).on('zoom', e => g.attr('transform', e.transform));
+  svg.call(zoom);
+  panZoom = { svg, zoom, W, H };
+
+  document.getElementById('zin').onclick = () => svg.transition().duration(300).call(zoom.scaleBy, 1.6);
+  document.getElementById('zout').onclick = () => svg.transition().duration(300).call(zoom.scaleBy, 0.625);
+  document.getElementById('zreset').onclick = () => svg.transition().duration(400).call(zoom.transform, d3.zoomIdentity);
+}
+
+// ================================================================
+//  SEARCH
+// ================================================================
+const searchInput = document.getElementById('search');
+const sugBox = document.getElementById('suggestions');
+const allNames = Object.keys(countryData).sort();
+
+if (searchInput) {
+  searchInput.addEventListener('input', () => {
+    const q = searchInput.value.trim().toLowerCase();
+    sugBox.innerHTML = '';
+    if (!q) { sugBox.style.display = 'none'; return; }
+    const matches = allNames.filter(n => n.toLowerCase().includes(q)).slice(0, 8);
+    if (!matches.length) { sugBox.style.display = 'none'; return; }
+    matches.forEach(name => {
+      const d = countryData[name];
+      const tc = d.tips.length;
+      const col = continentColors[d.continent] || '#aaa';
+      const div = document.createElement('div');
+      div.className = 's-item';
+      div.innerHTML = `<span>${d.flag || ''} ${name}</span>
+        <span class="s-badge" style="color:${col};background:${continentBg[d.continent] || 'rgba(80,80,80,.2)'}">${d.continent}</span>`;
+      div.addEventListener('click', () => { searchInput.value = ''; sugBox.style.display = 'none'; openModal(name); });
+      sugBox.appendChild(div);
+    });
+    sugBox.style.display = 'block';
+  });
+
+  document.addEventListener('click', e => { if (!document.getElementById('search-wrap').contains(e.target)) sugBox.style.display = 'none'; });
+
+  searchInput.addEventListener('keydown', e => {
+    if (e.key === 'Enter') { const first = sugBox.querySelector('.s-item'); if (first) first.click(); }
+    if (e.key === 'Escape') { sugBox.style.display = 'none'; searchInput.blur(); }
+  });
+}
+
+// ================================================================
+//  INIT
+// ================================================================
+loadMap().catch(err => {
+  const loadingEl = document.getElementById('loading');
+  if (loadingEl) loadingEl.innerHTML = '<p style="color:#f87171">Failed to load map. Check your internet connection.</p>';
+  console.error(err);
+});
