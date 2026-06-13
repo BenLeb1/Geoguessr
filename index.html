@@ -5,26 +5,237 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>GeoGuessr Guide</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="styles/main.css" />
+  <style>
+    :root {
+      --bg-dark: #0f172a;
+      --glass-bg: rgba(30, 41, 59, 0.7);
+      --glass-border: rgba(255, 255, 255, 0.1);
+      --accent-blue: #38bdf8;
+      --accent-green: #4ade80;
+      --text-main: #f8fafc;
+      --text-dim: #94a3b8;
+      --shadow-lg: 0 10px 25px -5px rgba(0, 0, 0, 0.3), 0 8px 10px -6px rgba(0, 0, 0, 0.3);
+    }
+
+    body {
+      margin: 0;
+      font-family: 'Inter', sans-serif;
+      background-color: var(--bg-dark);
+      color: var(--text-main);
+      overflow: hidden;
+    }
+
+    /* Loading Overlay */
+    #loading {
+      background: var(--bg-dark);
+      position: fixed;
+      inset: 0;
+      z-index: 100;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      transition: opacity 0.5s ease;
+    }
+
+    .spinner {
+      width: 50px;
+      height: 50px;
+      border: 4px solid var(--glass-border);
+      border-top-color: var(--accent-blue);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Header & Navigation */
+    #hdr {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      height: 70px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 2rem;
+      background: var(--glass-bg);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--glass-border);
+      z-index: 30;
+    }
+
+    h1 { font-size: 1.25rem; margin: 0; font-weight: 700; background: linear-gradient(to right, #fff, var(--accent-blue)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+
+    #search-wrap { position: relative; width: 400px; }
+    #search {
+      width: 100%;
+      padding: 0.6rem 1rem;
+      border-radius: 12px;
+      border: 1px solid var(--glass-border);
+      background: rgba(15, 23, 42, 0.5);
+      color: white;
+      outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    #search:focus { border-color: var(--accent-blue); box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.2); }
+
+    #suggestions {
+      position: absolute;
+      top: calc(100% + 8px); left: 0; right: 0;
+      background: #1e293b;
+      border-radius: 12px;
+      border: 1px solid var(--glass-border);
+      overflow: hidden;
+      box-shadow: var(--shadow-lg);
+    }
+
+    #stats { display: flex; gap: 1.5rem; }
+    #stats div { font-size: 0.875rem; color: var(--text-dim); }
+    #stats strong { color: var(--accent-green); display: block; font-size: 1.125rem; }
+
+    /* Map Styling */
+    #map-area {
+      height: 100vh;
+      padding-top: 70px;
+      box-sizing: border-box;
+      position: relative;
+    }
+    #map-svg-container { width: 100%; height: 100%; }
+
+    #map-controls {
+      position: absolute;
+      bottom: 2rem; right: 2rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+    #map-controls button {
+      width: 44px; height: 44px;
+      border-radius: 10px;
+      border: 1px solid var(--glass-border);
+      background: var(--glass-bg);
+      color: white;
+      backdrop-filter: blur(8px);
+      cursor: pointer;
+      font-size: 1.25rem;
+      transition: transform 0.1s, background 0.2s;
+    }
+    #map-controls button:hover { background: #334155; transform: scale(1.05); }
+
+    /* Tooltip */
+    .tooltip {
+      background: #1e293b;
+      border: 1px solid var(--accent-blue);
+      border-radius: 8px;
+      padding: 8px 12px;
+      pointer-events: none;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+    }
+    #tt-name { font-weight: 700; color: var(--accent-blue); margin-bottom: 2px; }
+    #tt-cont { font-size: 0.8rem; color: var(--text-dim); }
+
+    /* Modal & Overlay */
+    .overlay {
+      background: rgba(0, 0, 0, 0.6);
+      backdrop-filter: blur(4px);
+      transition: opacity 0.3s;
+    }
+
+    .modal {
+      background: #1e293b;
+      border: 1px solid var(--glass-border);
+      border-radius: 24px;
+      padding: 2rem;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+      width: 90%;
+      max-width: 800px;
+    }
+
+    #modal-header {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+    }
+    #modal-country { font-size: 2rem; margin: 0; }
+    #modal-flag { font-size: 2.5rem; }
+
+    .flashcard {
+      background: #334155;
+      border-radius: 16px;
+      padding: 1.5rem;
+      min-height: 300px;
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+      border: 1px solid rgba(255,255,255,0.05);
+    }
+    #card-img {
+      width: 100%;
+      max-height: 350px;
+      object-fit: cover;
+      border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    }
+    #card-text { font-size: 1.1rem; line-height: 1.6; }
+    #card-hint { 
+      padding: 1rem;
+      background: rgba(56, 189, 248, 0.1);
+      border-left: 4px solid var(--accent-blue);
+      font-size: 0.95rem;
+      color: var(--accent-blue);
+    }
+
+    /* Modal Navigation */
+    #card-nav {
+      margin-top: 2rem;
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      align-items: center;
+      gap: 2rem;
+    }
+    #card-nav button {
+      padding: 0.75rem 1.5rem;
+      border-radius: 12px;
+      border: none;
+      background: var(--accent-blue);
+      color: var(--bg-dark);
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .progress { height: 6px; background: #0f172a; border-radius: 3px; overflow: hidden; }
+    #progress-fill { height: 100%; background: var(--accent-green); transition: width 0.3s ease; }
+    
+    #modal-close {
+      top: 1.5rem; right: 1.5rem;
+      width: 40px; height: 40px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.1);
+      border: none; color: white;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer;
+    }
+    #modal-close:hover { background: #ef4444; }
+  </style>
 </head>
 <body>
 
 <div id="loading">
   <div class="spinner"></div>
-  <h2>🌍 GeoGuessr Guide</h2>
-  <p>Loading world map…</p>
+  <h2>GeoGuessr Intelligence</h2>
+  <p style="color: var(--text-dim)">Synchronizing world database...</p>
 </div>
 
 <div id="app">
   <header id="hdr">
-    <h1>🌍 GeoGuessr Guide</h1>
+    <h1>GeoGuide 2.0</h1>
     <div id="search-wrap">
       <input id="search" placeholder="Search countries..." autocomplete="off" />
       <div id="suggestions" class="suggestions" style="display:none"></div>
     </div>
     <div id="stats">
-      <div><strong id="stat-covered">0</strong> covered</div>
-      <div><strong id="stat-tips">0</strong> tips</div>
+      <div><strong id="stat-covered">0</strong> COUNTRIES</div>
+      <div><strong id="stat-tips">0</strong> TOTAL TIPS</div>
     </div>
   </header>
 
