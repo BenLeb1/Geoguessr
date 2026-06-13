@@ -217,6 +217,7 @@
     }
     #modal-close:hover { background: #ef4444; }
   </style>
+  <link rel="stylesheet" href="styles/main.css" />
 </head>
 <body>
 
@@ -224,6 +225,8 @@
   <div class="spinner"></div>
   <h2>GeoGuessr Intelligence</h2>
   <p style="color: var(--text-dim)">Synchronizing world database...</p>
+  <h2>GeoGuessr Intel</h2> 
+  <p>Loading world map…</p>
 </div>
 
 <div id="app">
@@ -250,31 +253,33 @@
     </section>
   </main>
 
-  <div id="tt" class="tooltip" style="opacity:0;position:fixed;z-index:40;">
+  <div id="tt" class="tooltip" style="opacity:0;position:fixed;z-index:400;">
     <div id="tt-name"></div>
     <div id="tt-cont"></div>
   </div>
 
-  <div id="overlay" class="overlay"></div>
-  <aside id="modal" class="modal">
+  <div id="overlay"></div>
+  <aside id="modal">
     <button id="modal-close">✕</button>
-    <div id="modal-header">
-      <span id="modal-flag"></span>
+    <div id="modal-hdr">
+      <span class="modal-flag"></span>
       <h2 id="modal-country">Country</h2>
-      <div id="modal-cont"></div>
-      <div id="tip-count-badge"></div>
+      <div id="modal-meta">
+        <div id="modal-cont"></div>
+        <div id="tip-count-badge"></div>
+      </div>
     </div>
     <div id="modal-body">
-      <div id="no-tips-msg">No tips available.</div>
-      <div id="flashcard" class="flashcard" style="display:none">
-        <img id="card-img" src="" alt="" style="display:none" />
+      <div id="no-tips-msg" style="display:none">No tips available.</div>
+      <div id="flashcard" style="display:none">
+        <img id="card-img" alt="" />
         <div id="card-text"></div>
-        <div id="card-hint" class="hint"></div>
+        <div id="card-hint"></div>
       </div>
       <div id="card-nav" style="display:none">
-        <button id="btn-prev">Prev</button>
+        <button id="btn-prev" class="nav-btn">Previous</button>
         <div id="card-counter"></div>
-        <button id="btn-next">Next</button>
+        <button id="btn-next" class="nav-btn">Next Tip</button>
         <div class="progress"><div id="progress-fill"></div></div>
       </div>
     </div>
