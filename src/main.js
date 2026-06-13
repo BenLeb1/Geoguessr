@@ -3,6 +3,15 @@ import { countryData } from './data/countryData.js';
 // Derived data
 const coveredCountries = new Set(Object.keys(countryData));
 
+function getFlagHTML(flag, height) {
+  if (!flag) return '';
+  const iso = Array.from(flag)
+    .map(char => String.fromCodePoint(char.codePointAt(0) - 127397))
+    .join('')
+    .toLowerCase();
+  return `<img src="https://flagcdn.com/w80/${iso}.png" style="height: ${height}px;">`;
+}
+
 const continentColors = {
   Europe: 'var(--c-europe)',
   Asia: 'var(--c-asia)',
@@ -16,8 +25,8 @@ const continentHover = {
   'North America': 'var(--c-hover-namerica)', 'South America': 'var(--c-hover-samerica)', Oceania: 'var(--c-hover-oceania)'
 };
 const continentBg = {
-  Europe: 'rgba(78,124,186,.18)', Asia: 'rgba(192,118,58,.18)', Africa: 'rgba(196,168,32,.18)',
-  'North America': 'rgba(63,160,107,.18)', 'South America': 'rgba(139,95,207,.18)', Oceania: 'rgba(46,168,160,.18)'
+  Europe: 'rgba(109, 40, 217, 0.18)', Asia: 'rgba(234, 179, 8, 0.18)', Africa: 'rgba(249, 115, 22, 0.18)',
+  'North America': 'rgba(239, 68, 68, 0.18)', 'South America': 'rgba(34, 197, 94, 0.18)', Oceania: 'rgba(244, 114, 182, 0.18)'
 };
 
 // ================================================================
@@ -48,13 +57,17 @@ function openModal(name) {
   if (!d) return;
   currentCountry = name; currentCard = 0;
   modalCountry.textContent = name;
-  modalFlag.textContent = d.flag || '';
+  modalFlag.innerHTML = getFlagHTML(d.flag, 38);
+  modalFlag.style.display = d.flag ? 'block' : 'none';
+
   const col = continentColors[d.continent] || '#aaa';
   const bg = continentBg[d.continent] || 'rgba(80,80,80,.2)';
   modalCont.textContent = d.continent;
   modalCont.style.color = col; modalCont.style.background = bg;
   const tc = d.tips.length;
-  tipCountBadge.textContent = tc > 0 ? `${tc} tip${tc !== 1 ? 's' : ''}` : ' No tips yet';
+  tipCountBadge.textContent = tc > 0 ? `${tc} tip${tc !== 1 ? 's' : ''}` : 'No tips yet';
+  modal.style.borderColor = `rgba(${col === 'var(--c-europe)' ? '34,197,94' : '56,189,248'}, 0.2)`;
+  flashcard.style.borderColor = col.replace(')', ', 0.15)');
   renderCard();
   modal.classList.add('open');
   overlay.classList.add('show');
@@ -111,8 +124,12 @@ if (statCoveredEl) statCoveredEl.textContent = coveredCountries.size;
 if (statTipsEl) statTipsEl.textContent = totalTips;
 
 // ================================================================
-//  MAP
+//  3D GLOBE MAP
 // ================================================================
+let rotation = [0, 0];
+let projection, path, svg, g, countries;
+let sensitivity = 75;
+
 const nameOverrides = {
   'Dem. Rep. Congo': 'Democratic Republic of the Congo',
   'Dominican Rep.': 'Dominican Republic',
@@ -262,6 +279,10 @@ const isoToName = {
   "858": "Uruguay"
 };
 
+function loadScript(src) {
+  return new Promise(r => { const s = document.createElement('script'); s.src = src; s.onload = r; document.head.appendChild(s); });
+}
+
 async function loadMap() {
   const [worldRes] = await Promise.all([
     fetch('https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json').then(r => r.json()),
@@ -273,26 +294,26 @@ async function loadMap() {
   if (loadingEl) loadingEl.style.display = 'none';
 }
 
-function loadScript(src) {
-  return new Promise(r => { const s = document.createElement('script'); s.src = src; s.onload = r; document.head.appendChild(s); });
-}
-
-let panZoom = null;
-
 function buildMap(world) {
   if (!window.d3 || !window.topojson) return;
   const container = document.getElementById('map-svg-container');
   const W = container.clientWidth || 960;
   const H = container.clientHeight || 500;
 
-  const svg = d3.select(container).append('svg')
+  svg = d3.select(container).append('svg')
     .attr('viewBox', `0 0 ${W} ${H}`)
     .attr('preserveAspectRatio', 'xMidYMid meet')
     .style('width', '100%').style('height', '100%');
 
-  const proj = d3.geoNaturalEarth1().scale(W / 6.2).translate([W / 2, H / 2]);
-  const path = d3.geoPath().projection(proj);
-  const countries = topojson.feature(world, world.objects.countries);
+  // Setup 3D Globe Projection
+  projection = d3.geoOrthographic()
+    .scale(Math.min(W, H) / 2.2)
+    .translate([W / 2, H / 2])
+    .clipAngle(90)
+    .rotate([0, -10]);
+
+  path = d3.geoPath().projection(projection);
+  countries = topojson.feature(world, world.objects.countries);
 
   const franceFeature = countries.features.find(f => f.properties?.name === 'France');
   if (franceFeature?.geometry?.type === 'MultiPolygon') {
@@ -305,8 +326,60 @@ function buildMap(world) {
     });
   }
 
-  const g = svg.append('g').attr('id', 'map-g');
-  svg.insert('rect', 'g').attr('width', W).attr('height', H).attr('fill', '#0d1420');
+  // Define High-Realism Shaders/Gradients
+  const defs = svg.append("defs");
+
+  // Deep Ocean Depth with subtle lighting
+  const oceanGradient = defs.append("radialGradient")
+    .attr("id", "ocean-gradient")
+    .attr("cx", "30%").attr("cy", "30%");
+  oceanGradient.append("stop").attr("offset", "0%").attr("stop-color", "#0ea5e9"); // Brighter center
+  oceanGradient.append("stop").attr("offset", "75%").attr("stop-color", "#1e40af");
+  oceanGradient.append("stop").attr("offset", "100%").attr("stop-color", "#1e40af");
+
+  // Atmosphere "Limb" Effect (Blue haze at the edges)
+  const atmosphereGradient = defs.append("radialGradient")
+    .attr("id", "atmosphere-gradient");
+  atmosphereGradient.append("stop").attr("offset", "88%").attr("stop-color", "rgba(56, 189, 248, 0)");
+  atmosphereGradient.append("stop").attr("offset", "96%").attr("stop-color", "rgba(14, 165, 233, 0.4)");
+  atmosphereGradient.append("stop").attr("offset", "100%").attr("stop-color", "rgba(186, 230, 253, 0.8)");
+
+  // Global Shadow Overlay (Directional Light Source)
+  const shadowGradient = defs.append("radialGradient")
+    .attr("id", "globe-shadow")
+    .attr("cx", "35%").attr("cy", "35%");
+  shadowGradient.append("stop").attr("offset", "0%").attr("stop-color", "rgba(255,255,255,0.1)");
+  shadowGradient.append("stop").attr("offset", "50%").attr("stop-color", "rgba(0,0,0,0)");
+  shadowGradient.append("stop").attr("offset", "100%").attr("stop-color", "rgba(0,0,0,0.7)");
+
+  // Outer Atmosphere Glow
+  const outerGlow = defs.append("filter").attr("id", "outer-glow");
+  outerGlow.append("feGaussianBlur").attr("stdDeviation", "8").attr("result", "blur");
+  
+  // Outer Glow Layer
+  svg.append("circle")
+    .attr("cx", W / 2).attr("cy", H / 2)
+    .attr("r", projection.scale() * 1.03)
+    .attr("fill", "#38bdf8")
+    .attr("fill-opacity", "0.2")
+    .attr("filter", "url(#outer-glow)")
+    .attr("class", "atmosphere-outer");
+
+  // Background Sphere (Ocean)
+  svg.append("circle")
+    .attr("cx", W / 2).attr("cy", H / 2)
+    .attr("r", projection.scale())
+    .attr("fill", "url(#ocean-gradient)")
+    .attr("class", "ocean-sphere");
+
+  g = svg.append('g').attr('id', 'map-g');
+
+  const grat = d3.geoGraticule()();
+  g.append('path').datum(grat).attr('class', 'graticule')
+    .attr('d', path)
+    .attr('fill', 'none')
+    .attr('stroke', 'rgba(255,255,255,0.05)')
+    .attr('stroke-width', 0.5);
 
   g.selectAll('path.country')
     .data(countries.features)
@@ -321,7 +394,7 @@ function buildMap(world) {
       const cont = covered ? countryData[name]?.continent : null;
       const fill = covered ? (continentColors[cont] || '#555') : 'var(--c-grey)';
       d3.select(this)
-        .attr('fill', fill).attr('stroke', '#060a14').attr('stroke-width', 0.4)
+        .attr('fill', fill).attr('stroke', '#000').attr('stroke-width', 0.5)
         .attr('cursor', covered ? 'pointer' : 'default')
         .attr('data-name', name || '').attr('data-covered', covered ? '1' : '0')
         .attr('data-fill', fill);
@@ -331,31 +404,53 @@ function buildMap(world) {
       const covered = this.getAttribute('data-covered') === '1';
       if (!covered || !name) return;
       
-      // Use CSS class for hover effects instead of manual JS fill changes
-      // This keeps the continent colors visible under the hover filter
       const tips = countryData[name]?.tips?.length || 0;
       const cont = countryData[name]?.continent;
-      document.getElementById('tt-name').textContent = (countryData[name]?.flag || '') + ' ' + name;
+      document.getElementById('tt-name').innerHTML = getFlagHTML(countryData[name]?.flag, 14) + ' ' + name;
       document.getElementById('tt-cont').textContent = `${cont} · ${tips} tip${tips !== 1 ? 's' : ''}`;
       tt.style.opacity = '1';
-      tt.style.left = (event.clientX + 14) + 'px';
-      tt.style.top = (event.clientY - 48) + 'px';
+      tt.style.left = (event.clientX + 20) + 'px';
+      tt.style.top = (event.clientY + 20) + 'px';
     })
     .on('mouseleave', function () { d3.select(this).attr('fill', this.getAttribute('data-fill')); tt.style.opacity = '0'; })
     .on('click', function () { const name = this.getAttribute('data-name'); const covered = this.getAttribute('data-covered') === '1'; if (covered && name) openModal(name); });
 
-  const grat = d3.geoGraticule()();
-  g.append('path').datum(grat).attr('class', 'graticule')
-    .attr('d', path).attr('fill', 'none')
-    .attr('stroke', 'rgba(255,255,255,0.04)').attr('stroke-width', 0.5);
+  // Drag to Rotate logic
+  svg.call(d3.drag().on('drag', (event) => {
+    const rotate = projection.rotate();
+    const k = sensitivity / projection.scale();
+    projection.rotate([
+      rotate[0] + event.dx * k,
+      rotate[1] - event.dy * k
+    ]);
+    update();
+  }));
 
-  const zoom = d3.zoom().scaleExtent([0.8, 30]).on('zoom', e => g.attr('transform', e.transform));
-  svg.call(zoom);
-  panZoom = { svg, zoom, W, H };
+  function update() {
+    g.selectAll('path').attr('d', path);
+    svg.selectAll(".ocean-sphere").attr("r", projection.scale());
+    svg.selectAll(".atmosphere-outer").attr("r", projection.scale() * 1.03);
+  }
 
-  document.getElementById('zin').onclick = () => svg.transition().duration(300).call(zoom.scaleBy, 1.6);
-  document.getElementById('zout').onclick = () => svg.transition().duration(300).call(zoom.scaleBy, 0.625);
-  document.getElementById('zreset').onclick = () => svg.transition().duration(400).call(zoom.transform, d3.zoomIdentity);
+  const zoom = d3.zoom()
+    .scaleExtent([projection.scale() * 0.8, projection.scale() * 50])
+    .on('zoom', (event) => {
+      projection.scale(event.transform.k);
+      update();
+    });
+
+  svg.call(zoom)
+    .on("mousedown.zoom", null)
+    .on("touchstart.zoom", null)
+    .call(zoom.transform, d3.zoomIdentity.scale(projection.scale()));
+
+  document.getElementById('zin').onclick = () => { svg.transition().duration(250).call(zoom.scaleBy, 1.5); };
+  document.getElementById('zout').onclick = () => { svg.transition().duration(250).call(zoom.scaleBy, 1 / 1.5); };
+  document.getElementById('zreset').onclick = () => {
+    svg.transition().duration(500).call(zoom.transform, d3.zoomIdentity.scale(Math.min(W, H) / 2.2));
+    projection.rotate([0, -10]);
+    update();
+  };
 }
 
 // ================================================================
@@ -378,7 +473,7 @@ if (searchInput) {
       const col = continentColors[d.continent] || '#aaa';
       const div = document.createElement('div');
       div.className = 's-item';
-      div.innerHTML = `<span>${d.flag || ''} ${name}</span>
+      div.innerHTML = `<span>${getFlagHTML(d.flag, 14)} ${name}</span>
         <span class="s-badge" style="color:${col};background:${continentBg[d.continent] || 'rgba(80,80,80,.2)'}">${d.continent}</span>`;
       div.addEventListener('click', () => { searchInput.value = ''; sugBox.style.display = 'none'; openModal(name); });
       sugBox.appendChild(div);
